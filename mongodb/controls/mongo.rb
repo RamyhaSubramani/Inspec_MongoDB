@@ -6,9 +6,9 @@ if os[:name]== 'ubuntu'
 describe command('lsb_release -r -s') do
 its ('stdout') { should eq "16.04\n" }
 end
-describe passwd()do
-  its('users') { should include 'mongodb' }
- end
+describe file('/usr/bin/ubuntu-software') do
+it { should be_owned_by 'root' }
+end
 end
 end
 #to check mongodb is installed and enabled
@@ -48,7 +48,7 @@ describe processes('mongod') do
 its ('users') { should_not include 'root' }
 end 
 end
-#to check uids and gids
+#to check info of mongodb
 control 'passwd' do
 if(describe passwd()do
   its('users') { should include 'mongodb' }
@@ -63,7 +63,6 @@ end
 control 'user' do
 describe user('mongodb') do
 it { should exist }
-its('uid') { should eq 121 }
 its('group') {should_not eq 'root' }
 end
 end

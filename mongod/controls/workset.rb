@@ -1,3 +1,4 @@
+#the sum of datasize and indexsize should be less tha RAM size
 x=Array[]
 y=command('grep MemTotal /proc/meminfo').stdout
 x=y.split(" ")
@@ -10,4 +11,6 @@ c=a[4].split(":").last,a[8].split(":").last
 d=c[0].to_i+c[1].to_i
 if d <= z
 puts 'true'
+else
+puts 'false'
 end

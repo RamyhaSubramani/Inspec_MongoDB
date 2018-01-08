@@ -2,12 +2,13 @@
 #
 # Copyright 2018, Ramyha
 #
-only_if { os[:name]== 'ubuntu' && os[:release]=="16.04" }
+if ( os[:name]== 'ubuntu' && os[:release]=="16.04" )
 #determining all the required paths
 mongod_conf       = '/etc/mongod.conf'
 mongod_ssl        = '/etc/ssl/mongodb.pem'
-mongod_log        = '/var/lib/mongodb/mongod.lob'
-#to determine RAM,data and index size
+mongod_log        = '/var/lib/mongodb/mongod.log'
+mongod_service    = '/lib/systemd/system/mongod.service'
+#to check mongodb is installed,enabled and running
 control 'os-ubuntu' do
 impact 0.5
 title "mongodb installed"
@@ -18,10 +19,28 @@ describe service("mongod") do
   it { should be_running }
 end
 end
-control "mongodb v3.2" do
+#mongodb file check
+control 'mongodb-file-check' do
+desc "Mongod.conf should exist and mongod should be a executable file "
+describe file(mongod_conf) do
+it { should exist }
+it { should be_file }
+its('mode') { should cmp '0644' }
+end
+describe file('/usr/bin/mongod') do
+it { should exist }
+it { should be_executable }
+end
+describe file(mongod_service) do
+it { should exist }
+it { should be_file }
+end
+end
+#mongodb port and ip
+control "mongodb-server" do
 impact 0.8
 title "mongodb port and ip"
-desc "The Mongodb version,port and ipaddress"
+desc "The Mongodb port and ipaddress"
 describe port('27017') do
 it { should be_listening }
 its('processes') { should include 'mongod'}
@@ -31,6 +50,7 @@ describe host('127.0.0.1', port: 27017, protocol: 'tcp') do
   its('ipaddress') { should cmp '127.0.0.1' }
 end
 end
+#check permissions of mongodb config file
 control 'mongodb-conf' do
   impact 1.0
   title 'Checking mongodb config file owner, group and permissions'
@@ -43,7 +63,6 @@ control 'mongodb-conf' do
     it { should_not be_executable.by('others') }
   end
 end
-
 #process security
 control "mongod-process" do
  impact 0.7
@@ -101,6 +120,9 @@ control "mongod-security-ssl" do
   title "SSL is enabled"
   desc "Enabling SSL ensures communication to mongod is secure"
   impact 0.6
+  describe ssl(port: 27017) do
+  it { should be_enabled }
+end
     describe x509_certificate(mongod_ssl) do
   its('subject.CN') { should eq "Ramyha" }
   #its('not_before') { should eq ' 2018-01-04 10:31:56.000000000 +0000' }
@@ -129,21 +151,26 @@ describe command('mongo --eval "printjson(db.serverStatus().storageEngine.name)"
 its('stdout') { should include 'wiredTiger' }
 end
 desc 'verifying log file size'
-describe file('/var/log/mongodb/mongod.log') do
-its('size') { should be < 2097152 }
+describe parse_config_file(mongod_conf) do
+its('smallfiles') { should eq 'true' }
 end
 desc "Leave journaling enabled in order to ensure that mongod will be able to recover its data files and keep the data files in a valid state following a crash"
 describe parse_config_file(mongod_conf) do
-its('nojournal') { should eq 'false' }
+its('journalenabled') { should eq 'true' }
 end
 end
 control 'wiredTiger' do
-title "The WiredTiger cache size"
-desc "Increasing wiredTiger cache size might improve performance"
+title "The WiredTiger options"
+desc "Increasing wiredTiger cache size might improve performance and the default value for directoryForIndexes is true and journalCompressor is snappy"
 describe parse_config_file(mongod_conf) do
-its(['wiredTiger','engineConfig','cacheSizeGB']) { should eq ' 256MB ' }
-its(['wiredTiger','engineConfig','directoryForIndexes']) { should eq 'true' }
-its(['wiredTiger','engineConfig','journalCompressor']) { should eq 'snappy' }
+its('cacheSize') { should eq ' 256MB ' }
+its('directoryForIndexes') { should eq 'true' }
+its('journalCompressor') { should eq 'snappy' }
+end
+desc "Replica Set is the feature provided by the Mongodb database to achieve high availability and automatic failover"
+describe parse_config_file(mongod_conf) do
+its('replSet') { should eq '#replica set name' }
+its('rest') { should eq true }
 end
 end
 control 'storage-RAM' do
@@ -153,4 +180,12 @@ describe command('inspec exec workset.rb') do
 its ('stdout') { should include 'true' }
 end
 end
-#elsif { os[:name]== 'redhat' && os[:release] ==
+elsif os[:name]== 'redhat' 
+control "repository-check" do
+desc "mongodb-org-3.4.repo be a yum repo file for the official MongoDB repository"
+describe file('/etc/yum.repos.d/mongodb-org-3.4.repo') do
+it { should exist }
+it { should be_file }
+end
+end 
+end

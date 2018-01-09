@@ -18,19 +18,14 @@
 #The File can be viewed under github using the link https://github.com/RamyhaSubramani/mongodbinspec
 #
 #
-title "MongoDB COMPLIANCE CODE"
+
+#testing mongodb  for ubuntu
 if ( os[:name]== 'ubuntu' && os[:family]=='debian' && os[:release]=='16.04' )
 #determining all the required paths
 mongod_conf       = '/etc/mongod.conf'
 mongod_ssl        = '/etc/ssl/mongodb.pem'
 mongod_log        = '/var/lib/mongodb/mongod.log'
 mongod_service    = '/lib/systemd/system/mongod.service'
-
-#options to parse the config file
-options = { 
- #assignment_regex: /^\s*([^:]*?)\s*\ \s*(.*?)\s*;$/
- comment_char: '#'
- }
 
 #to check MongoDB is installed,enabled and running
 control 'os-ubuntu' do
@@ -135,6 +130,13 @@ end
 end
 
 #to check info of MongoDB
+#fetching uid and gid of a system
+File.open('/etc/passwd').each do |line|
+if line .include? "mongodb"
+user= line
+userdata=user.split(":")
+user_uid=userdata[2]
+user_gid=userdata[3]
 control 'passwd' do
 title 'MongoDB-info'
 desc 'It contains the MongoDB information that may log into the system'
@@ -142,12 +144,13 @@ if(describe passwd()do
   its('users') { should include 'mongodb' }
  end)
 describe passwd.users('mongodb') do
-its('uids') { should include '121' }
-its('gids') { should include '65534' }
+its('uids') { should include user_uid }
+its('gids') { should include user_gid }
 end
 end
 end
-
+end
+end
 #to check about the user
 control 'user' do
 desc 'The MongoDB profiles for a single, known/expected local user, including the groups to which that user belongs, the frequency of required password changes, and the directory paths to home and shell'
@@ -185,14 +188,14 @@ net:
   it { should be_enabled }
 end
     describe x509_certificate(mongod_ssl) do
- # its('subject.CN') { should eq "Ramyha" } 
+  its('subject.CN') { should eq "#name of a subject" } 
   #its('not_before') { should eq ' 2018-01-04 10:31:56.000000000 +0000' }
   #its('not_after')  { should eq '2020-10-24 10:31:56.000000000 +0000' }
   its('version') { should eq 2 }
   its('signature_algorithm') { should eq 'sha256WithRSAEncryption' }
   its('key_length') { should be 2048 }
 end
- describe parse_config_file(mongod_conf,options) do
+ describe parse_config_file(mongod_conf) do
     its('sslMode') { should eq 'requireSSL' }
     its('sslPEMKeyFile') { should_not be_nil }
   end
@@ -201,7 +204,7 @@ control 'mongod-security-objcheck' do
   title 'checking payload is enabled'
   desc 'Inspect all client data for validity on receipt (useful for developing drivers)'
   impact 0.1
-  describe parse_config_file(mongod_conf,options) do
+  describe parse_config_file(mongod_conf) do
     its('objCheck') { should eq true }
   end
 end
@@ -213,7 +216,7 @@ describe command('mongo --eval "printjson(db.serverStatus().storageEngine.name)"
 its('stdout') { should include 'wiredTiger' }
 end
 desc 'verifying log file size'
-describe parse_config_file(mongod_conf,options) do
+describe parse_config_file(mongod_conf) do
 its('smallfiles') { should eq 'true' }
 end
 desc 'Leave journaling enabled in order to ensure that mongod will be able to recover its data files and keep the data files in a valid state following a crash'
@@ -224,18 +227,16 @@ end
 control 'wiredTiger' do
 title 'The WiredTiger options'
 desc 'Increasing wiredTiger cache size might improve performance and the default value for directoryForIndexes is true and journalCompressor is snappy'
-describe parse_config_file(mongod_conf,options) do
+describe parse_config_file(mongod_conf) do
 its('cacheSize') { should eq ' 256MB ' }
 its('directoryForIndexes') { should eq 'true' }
 its('journalCompressor') { should eq 'snappy' }
 end
 desc 'Replica Set is the feature provided by the MongoDB database to achieve high availability and automatic failover'
-describe parse_config_file(mongod_conf,options) do
+describe parse_config_file(mongod_conf) do
 its('replSet') { should eq '#replica set name' }
 its('rest') { should eq true }
 end
-end
-control 'storage-RAM' do
 title 'MongoDB storage fits into RAM size'
 desc 'The MongoDB working set should be fits into RAM size else it degrades performance'
 describe command('inspec exec workset.rb') do # the file workset.rb should retrive system's RAM size and database size from its working set and compare two values and return true it the db size fits into RAM size.

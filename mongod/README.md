@@ -1,3 +1,3 @@
-# Example InSpec Profile
+# InSpec Profile for MongoDB
 
-This example shows the implementation of an InSpec profile.
+This documentation shows the implementation of an InSpec profile for MongoDB.

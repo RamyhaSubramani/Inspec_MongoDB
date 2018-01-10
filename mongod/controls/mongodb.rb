@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 #author : Ramyha V S
-#The File can be viewed under github using the link https://github.com/RamyhaSubramani/mongodbinspec
+#The File can be viewed under github using the link https://github.com/RamyhaSubramani/Inspec_MongoDB
 #
 #
 
